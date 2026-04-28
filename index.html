@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบประเมินสมรรถนะบุคลากร</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Google Fonts: Noto Sans Thai -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome/Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Chart.js สำหรับทำกราฟ Dashboard -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans Thai"', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#1e3a8a', 
+                        secondary: '#3b82f6', 
+                        accent: '#eff6ff', 
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #f8fafc;
+            background-image: radial-gradient(at 0% 0%, hsla(330, 100%, 85%, 0.3) 0px, transparent 50%),
+                              radial-gradient(at 100% 100%, hsla(217, 100%, 85%, 0.4) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+
+        /* Glassmorphism Card */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* 3D Radio Card Effect */
+        .radio-card-label {
+            box-shadow: 0 4px 0 #e2e8f0, 0 5px 10px rgba(0, 0, 0, 0.05);
+        }
+        .radio-card-label:hover {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #e2e8f0, 0 3px 6px rgba(0, 0, 0, 0.05);
+        }
+        .peer:checked + .radio-card-label {
+            box-shadow: 0 4px 0 #be185d, 0 5px 15px rgba(236, 72, 153, 0.2);
+            transform: translateY(0);
+        }
+        .peer:checked + .radio-card-label:hover {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #be185d, 0 3px 6px rgba(236, 72, 153, 0.2);
+        }
+
+        /* Fade-in Animation สำหรับสลับแท็บ */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        /* Table Styles */
+        .admin-table th {
+            position: sticky;
+            top: 0;
+            background-color: #f1f5f9;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="text-gray-800 antialiased min-h-screen py-10 px-4 sm:px-6 lg:px-8">
+
+    <div class="max-w-6xl mx-auto glass-card rounded-3xl shadow-2xl overflow-hidden border border-gray-100 relative">
+        
+        <!-- Header Ribbon -->
+        <div class="h-3 w-full bg-gradient-to-r from-blue-600 via-pink-400 to-blue-500"></div>
+
+        <div class="p-8 sm:p-10">
+            <!-- Header Section -->
+            <div class="text-center mb-10">
+                <div class="inline-flex items-center justify-center mb-6">
+                    <img src="https://img2.pic.in.th/logofc9fcc007078fa30.png" alt="โลโก้โรงพยาบาล" class="h-28 w-auto object-contain drop-shadow-md">
+                </div>
+                <h1 class="text-3xl font-bold text-gray-900 tracking-tight">ระบบประเมินสมรรถนะบุคลากร</h1>
+                <p class="text-gray-500 mt-2">(Core & Functional Competency Assessment)</p>
+            </div>
+
+            <!-- Tab Navigation (สลับระหว่างฟอร์มประเมินและแดชบอร์ด) -->
+            <div class="flex justify-center flex-wrap gap-4 mb-8">
+                <button type="button" onclick="switchTab('form')" id="tab-form" class="px-8 py-3 rounded-full font-bold bg-gradient-to-r from-blue-600 to-pink-600 text-white shadow-[0_4px_0_#9d174d] hover:translate-y-[2px] hover:shadow-[0_2px_0_#9d174d] transition-all flex items-center">
+                    <i data-lucide="edit-3" class="w-5 h-5 mr-2"></i> แบบประเมิน
+                </button>
+                <button type="button" onclick="checkAdminLogin()" id="tab-dashboard" class="px-8 py-3 rounded-full font-bold bg-white text-gray-600 border border-gray-200 shadow-[0_4px_0_#e5e7eb] hover:translate-y-[2px] hover:shadow-[0_2px_0_#e5e7eb] transition-all flex items-center">
+                    <i data-lucide="pie-chart" class="w-5 h-5 mr-2"></i> แดชบอร์ดผู้บริหาร (Admin)
+                </button>
+            </div>
+
+            <!-- Dashboard View (ซ่อนเป็นค่าเริ่มต้น) -->
+            <div id="dashboardView" class="hidden space-y-8 animate-fade-in mb-8">
+                
+                <!-- ตัวกรองตำแหน่ง -->
+                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between flex-wrap gap-4">
+                    <h2 class="text-lg font-bold text-gray-800 flex items-center">
+                        <i data-lucide="filter" class="w-5 h-5 mr-2 text-blue-500"></i> ตัวกรองข้อมูล
+                    </h2>
+                    <select id="dashPositionFilter" onchange="updateDashboardUI()" class="px-4 py-2 rounded-lg border border-gray-300 font-medium text-gray-700 focus:ring-2 focus:ring-blue-400 outline-none w-full sm:w-auto">
+                        <option value="all">ทุกตำแหน่ง</option>
+                        <option value="พยาบาลวิชาชีพ">พยาบาลวิชาชีพ</option>
+                        <option value="พนักงานช่วยเหลือคนไข้">พนักงานช่วยเหลือคนไข้ (NA)</option>
+                        <option value="พนักงานประจำตึก">พนักงานประจำตึก</option>
+                    </select>
+                </div>
+
+                <!-- บทสรุปสำหรับผู้บริหาร (Executive Summary) -->
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+                    <div class="absolute -right-10 -top-10 opacity-10">
+                        <i data-lucide="trending-up" class="w-64 h-64"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-blue-300 mb-4 flex items-center">
+                        <i data-lucide="bar-chart-2" class="w-6 h-6 mr-2 text-pink-400"></i> บทสรุปสำหรับผู้บริหาร (Executive Summary)
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20">
+                            <div class="text-slate-300 text-sm mb-1">บุคลากรที่ประเมินแล้ว</div>
+                            <div class="text-3xl font-bold text-white flex items-end gap-2">
+                                <span id="execTotalCount">0</span> <span class="text-sm font-normal text-slate-400 pb-1">คน</span>
+                            </div>
+                        </div>
+                        <div class="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20">
+                            <div class="text-slate-300 text-sm mb-1">คะแนนเฉลี่ยองค์กร</div>
+                            <div class="text-3xl font-bold text-blue-400 flex items-end gap-2">
+                                <span id="execAvgOrg">0.00</span> <span class="text-sm font-normal text-slate-400 pb-1">/ 5.00</span>
+                            </div>
+                        </div>
+                        <div class="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20">
+                            <div class="text-slate-300 text-sm mb-1">สมรรถนะที่โดดเด่นสุด</div>
+                            <div class="text-lg font-bold text-pink-400 leading-tight mt-1 truncate" id="execTopStrength" title="-">-</div>
+                        </div>
+                        <div class="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20">
+                            <div class="text-slate-300 text-sm mb-1">สมรรถนะที่ต้องพัฒนา</div>
+                            <div class="text-lg font-bold text-yellow-400 leading-tight mt-1 truncate" id="execTopWeakness" title="-">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- พื้นที่กราฟ (Charts Area) -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- กราฟแท่ง ภาพรวม Core Competency -->
+                    <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
+                        <h3 class="font-bold text-lg text-gray-800 mb-4 flex items-center"><i data-lucide="bar-chart" class="w-5 h-5 mr-2 text-blue-500"></i> ภาพรวมคะแนนสมรรถนะหลัก (Core)</h3>
+                        <div class="relative w-full flex-1" style="min-height: 300px;">
+                            <canvas id="overallChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- กราฟใยแมงมุม วิเคราะห์รายบุคคล -->
+                    <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-lg text-gray-800 flex items-center"><i data-lucide="crosshair" class="w-5 h-5 mr-2 text-pink-500"></i> วิเคราะห์รายบุคคล</h3>
+                            <select id="personSelect" onchange="updateIndividualChart()" class="px-3 py-1.5 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-pink-400 outline-none max-w-[150px] sm:max-w-xs">
+                                <option value="">-- เลือกบุคคล --</option>
+                            </select>
+                        </div>
+                        <div class="relative w-full flex-1 flex justify-center" style="min-height: 300px;">
+                            <canvas id="individualChart"></canvas>
+                        </div>
+                        
+                        <!-- บทสรุปรายบุคคล (จะถูกใส่ด้วย JS) -->
+                        <div id="individualSummary" class="mt-6 hidden bg-gradient-to-r from-blue-50 to-pink-50 p-5 rounded-xl border border-pink-100 shadow-sm">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ตารางรายงานผลแยกตามตำแหน่ง -->
+                <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                        <h3 class="font-bold text-lg text-gray-800 flex items-center">
+                            <i data-lucide="table" class="w-5 h-5 mr-2 text-blue-500"></i> รายงานผลคะแนนรายบุคคลและรายสมรรถนะ
+                        </h3>
+                        <button onclick="exportTableToCSV('รายงานสมรรถนะ.csv')" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium shadow-sm transition-colors flex items-center text-sm w-full sm:w-auto justify-center">
+                            <i data-lucide="download" class="w-4 h-4 mr-2"></i> ส่งออก Excel (CSV)
+                        </button>
+                    </div>
+                    
+                    <div class="overflow-x-auto max-h-[500px] border border-gray-200 rounded-lg">
+                        <table class="w-full text-sm text-left text-gray-600 admin-table" id="reportTable">
+                            <thead class="text-xs text-gray-700 uppercase bg-slate-100 whitespace-nowrap">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3">ชื่อ - สกุล</th>
+                                    <th scope="col" class="px-4 py-3">ตำแหน่ง</th>
+                                    <th scope="col" class="px-4 py-3">ผู้ประเมิน</th>
+                                    <th scope="col" class="px-4 py-3 text-center border-l border-gray-300" title="การมุ่งผลสัมฤทธิ์">Core 1</th>
+                                    <th scope="col" class="px-4 py-3 text-center" title="บริการที่ดี">Core 2</th>
+                                    <th scope="col" class="px-4 py-3 text-center" title="การสั่งสมความเชี่ยวชาญ">Core 3</th>
+                                    <th scope="col" class="px-4 py-3 text-center" title="การยึดมั่นในความถูกต้อง">Core 4</th>
+                                    <th scope="col" class="px-4 py-3 text-center" title="การทำงานเป็นทีม">Core 5</th>
+                                    <th scope="col" class="px-4 py-3 text-center border-l border-gray-300" title="สมรรถนะประจำตำแหน่งข้อที่ 1">Func 1</th>
+                                    <th scope="col" class="px-4 py-3 text-center" title="สมรรถนะประจำตำแหน่งข้อที่ 2">Func 2</th>
+                                    <th scope="col" class="px-4 py-3 text-center" title="สมรรถนะประจำตำแหน่งข้อที่ 3">Func 3</th>
+                                    <th scope="col" class="px-4 py-3 text-center" title="สมรรถนะประจำตำแหน่งข้อที่ 4">Func 4</th>
+                                    <th scope="col" class="px-4 py-3 text-center" title="สมรรถนะประจำตำแหน่งข้อที่ 5">Func 5</th>
+                                    <th scope="col" class="px-4 py-3 text-center border-l border-gray-300">เฉลี่ยรวม</th>
+                                    <th scope="col" class="px-4 py-3 text-center">เกณฑ์สรุป</th>
+                                    <th scope="col" class="px-4 py-3 text-center">วันที่ประเมิน</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminTableBody">
+                                <!-- ข้อมูลตารางจะถูกใส่ที่นี่ด้วย JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Form Start -->
+            <form id="assessmentForm" class="animate-fade-in" onsubmit="submitForm(event)">
+                
+                <!-- Section 1: User Information -->
+                <div class="bg-gray-50 p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+                    <h2 class="text-lg font-semibold text-blue-800 mb-4 flex items-center">
+                        <i data-lucide="user-circle" class="w-5 h-5 mr-2"></i> ข้อมูลทั่วไป
+                    </h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Assessee -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้เข้ารับการประเมิน *</label>
+                            <input type="text" id="assesseeName" required
+                                class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-shadow shadow-sm outline-none bg-white">
+                        </div>
+                        
+                        <!-- Position -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ตำแหน่ง *</label>
+                            <select id="position" required onchange="loadQuestions()"
+                                class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-shadow shadow-sm outline-none bg-white cursor-pointer appearance-none">
+                                <option value="" disabled selected>-- กรุณาเลือกตำแหน่ง --</option>
+                                <option value="พยาบาลวิชาชีพ">พยาบาลวิชาชีพ</option>
+                                <option value="พนักงานช่วยเหลือคนไข้">พนักงานช่วยเหลือคนไข้ (NA)</option>
+                                <option value="พนักงานประจำตึก">พนักงานประจำตึก</option>
+                            </select>
+                        </div>
+
+                        <!-- Assessor -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้ประเมิน *</label>
+                            <input type="text" id="assessorName" required
+                                class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition-shadow shadow-sm outline-none bg-white">
+                        </div>
+
+                        <!-- Assessment Type -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">ประเภทการประเมิน *</label>
+                            <div class="flex space-x-4">
+                                <label class="flex items-center p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-pink-50 transition flex-1 justify-center">
+                                    <input type="radio" name="assessmentType" value="ประเมินตนเอง" required class="w-4 h-4 text-pink-600 focus:ring-pink-500">
+                                    <span class="ml-2 text-sm text-gray-700">ประเมินตนเอง</span>
+                                </label>
+                                <label class="flex items-center p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-pink-50 transition flex-1 justify-center">
+                                    <input type="radio" name="assessmentType" value="ผู้บังคับบัญชา" class="w-4 h-4 text-pink-600 focus:ring-pink-500">
+                                    <span class="ml-2 text-sm text-gray-700">ผู้บังคับบัญชา</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Explanation of Scores -->
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-xl shadow-sm mb-8">
+                    <h3 class="font-semibold text-blue-800 mb-2 flex items-center">
+                        <i data-lucide="info" class="w-5 h-5 mr-2"></i> คำอธิบายเกณฑ์การให้คะแนน
+                    </h3>
+                    <ul class="list-disc pl-6 text-sm text-gray-700 space-y-1">
+                        <li><b>0</b> = ไม่สามารถประเมินได้</li>
+                        <li><b>1</b> = จำเป็นต้องได้รับการพัฒนาอย่างยิ่ง</li>
+                        <li><b>2</b> = ต้องได้รับการพัฒนา (ทำได้อย่างน้อยกว่าครึ่ง)</li>
+                        <li><b>3</b> = อยู่ในระดับใช้งานได้ (ทำได้ประมาณครึ่ง)</li>
+                        <li><b>4</b> = อยู่ในระดับที่ใช้งานได้ดี (ทำได้มากกว่าครึ่ง)</li>
+                        <li><b>5</b> = อยู่ในระดับที่ดีเยี่ยม (ทำได้ครบทั้งหมด)</li>
+                    </ul>
+                </div>
+
+                <!-- Section 2: Questions Container -->
+                <div id="questionsContainer" class="hidden mb-8 space-y-8">
+                    <!-- Questions will be injected here by JS -->
+                </div>
+
+                <!-- Submit Button -->
+                <div class="mt-10">
+                    <button type="submit" id="submitBtn" class="w-full bg-gradient-to-r from-blue-600 to-pink-600 text-white font-bold py-4 px-8 rounded-2xl shadow-[0_6px_0_#9d174d] hover:shadow-[0_4px_0_#9d174d] hover:translate-y-[2px] active:shadow-[0_0px_0_#9d174d] active:translate-y-[6px] transition-all duration-150 flex justify-center items-center text-lg">
+                        <i data-lucide="send" class="w-5 h-5 mr-2"></i>
+                        บันทึกผลการประเมิน
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Data Configuration & Logic -->
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // ตัวแปรเก็บสถานะการ Login ของ Admin
+        let isAdminLoggedIn = false;
+
+        // ฐานข้อมูลคำถามแบบละเอียด
+        const questionsDB = {
+            core: {
+                title: "สมรรถนะหลัก (Core Competency) - ทุกตำแหน่ง",
+                items: [
+                    { topic: "1. การมุ่งผลสัมฤทธิ์ (Achievement Motivation)", definition: "ความมุ่งมั่นจะปฏิบัติราชการให้ดีหรือให้เกินมาตรฐานที่มีอยู่...", levels: {0: "ไม่สามารถประเมินได้", 1: "พยายามทำงานในหน้าที่ให้ดี...", 2: "กำหนดมาตรฐานการทำงาน...", 3: "ปรับปรุงวิธีการทำงาน...", 4: "กำหนดเป้าหมายที่ท้าทาย...", 5: "ตัดสินใจโดยคำนวณผลได้เสีย..."} },
+                    { topic: "2. บริการที่ดี (Service Mind)", definition: "ความตั้งใจและความพยายามของข้าราชการในการให้บริการ...", levels: {0: "ไม่สามารถประเมินได้", 1: "ให้บริการเป็นมิตร สุภาพ...", 2: "ให้ข้อมูลข่าวสารที่ถูกต้อง...", 3: "รับเป็นธุระ ช่วยแก้ปัญหา...", 4: "ให้เวลา ให้ความช่วยเหลือ...", 5: "เข้าใจความต้องการที่แท้จริง..."} },
+                    { topic: "3. การสั่งสมความเชี่ยวชาญในงานอาชีพ (Expertise)", definition: "ความสนใจใฝ่รู้ สั่งสม ความรู้ความสามารถของตน...", levels: {0: "ไม่สามารถประเมินได้", 1: "กระตือรือร้นศึกษาหาความรู้...", 2: "รอบรู้เท่าทันเทคโนโลยี...", 3: "เข้าใจผลกระทบของวิทยาการ...", 4: "ขวนขวายหาความรู้เชิงลึกและกว้าง...", 5: "สนับสนุนให้เกิดบรรยากาศแห่งการพัฒนา..."} },
+                    { topic: "4. การยึดมั่นในความถูกต้องชอบธรรมและจริยธรรม (Integrity)", definition: "การดำรงตนและประพฤติปฏิบัติอย่างถูกต้องเหมาะสม...", levels: {0: "ไม่สามารถประเมินได้", 1: "ปฏิบัติงานโปร่งใส ซื่อสัตย์...", 2: "รักษาวาจา มีสัจจะ...", 3: "ยึดมั่นในหลักการ เสียสละ...", 4: "ธำรงความถูกต้อง ยืนหยัดพิทักษ์ผลประโยชน์...", 5: "ธำรงความถูกต้อง ยืนหยัดพิทักษ์ผลประโยชน์แม้ในสถานการณ์ที่เสี่ยง..."} },
+                    { topic: "5. การทำงานเป็นทีม (Teamwork)", definition: "ความตั้งใจที่จะทำงานร่วมกับผู้อื่น เป็นส่วนหนึ่งในทีมงาน...", levels: {0: "ไม่สามารถประเมินได้", 1: "ทำงานที่ได้รับมอบหมายสำเร็จ...", 2: "สร้างสัมพันธ์เข้ากับผู้อื่นได้ดี...", 3: "รับฟังความเห็น ประมวลความคิด...", 4: "กล่าวชื่นชมให้กำลังใจ...", 5: "ส่งเสริมความสามัคคี..."} }
+                ]
+            },
+            func_rn: {
+                title: "สมรรถนะประจำตำแหน่ง (Functional Competency) - พยาบาลวิชาชีพ",
+                items: [
+                    { topic: "1. ความรู้และทักษะในการช่วยฟื้นคืนชีพ (CPR)", definition: "พฤติกรรมที่แสดงออกถึงความรู้ ความสามารถและทักษะ...", levels: {0: "ไม่สามารถประเมินได้", 1: "มีความรู้พื้นฐาน BLS/ACLS...", 2: "ผ่านการอบรมหลักสูตร BLS/ACLS...", 3: "ผ่านการฟื้นฟูทักษะ BLS/ACLS...", 4: "เป็นวิทยากร BLS/ACLS...", 5: "เป็นวิทยากรภายนอกหน่วยงาน..."} },
+                    { topic: "2. ความรู้และทักษะการบริหารยาความเสี่ยงสูง (HAD)", definition: "พฤติกรรมที่แสดงออกถึงความรู้ ความสามารถและทักษะ...", levels: {0: "ไม่สามารถประเมินได้", 1: "มีความรู้ตามหลัก 7R...", 2: "บริหารยา HAD ได้ตาม WI...", 3: "ปฏิบัติตาม WI ได้อย่างถูกต้อง...", 4: "เป็นวิทยากรสอนภายใน...", 5: "เป็นวิทยากรภายนอก ปรับปรุงกระบวนการ..."} },
+                    { topic: "3. ความรู้และทักษะในการใช้กระบวนการพยาบาล", definition: "พฤติกรรมที่แสดงออกถึงความรู้ ความสามารถและทักษะ...", levels: {0: "ไม่สามารถประเมินได้", 1: "รู้ 5 ขั้นตอน บันทึก APIE...", 2: "ปฏิบัติตาม WI ได้ครอบคลุม...", 3: "วิเคราะห์/ปรับปรุงกระบวนการ...", 4: "เป็นวิทยากร/ผู้นิเทศภายใน...", 5: "เป็นวิทยากรภายนอก พัฒนาการใช้..."} },
+                    { topic: "4. ความรู้และทักษะควบคุมและป้องกันการติดเชื้อในโรงพยาบาล (IC)", definition: "พฤติกรรมที่แสดงออกถึงความรู้ ความสามารถและทักษะ...", levels: {0: "ไม่สามารถประเมินได้", 1: "รู้พื้นฐาน Standard/Transmission...", 2: "ระบุกลุ่มเสี่ยง บอกแนวทางป้องกัน...", 3: "วางแผน ป้องกัน ติดตามนิเทศ...", 4: "ถ่ายทอดความรู้ ให้คำปรึกษา...", 5: "ปฏิบัติหน้าที่เป็นวิทยากรระดับเขต..."} },
+                    { topic: "5. การประยุกต์ใช้เทคโนโลยีดิจิทัลเพื่อการพัฒนาคุณภาพงาน", definition: "พฤติกรรมที่แสดงออกถึงความรู้ ความสามารถและทักษะ...", levels: {0: "ไม่สามารถประเมินได้", 1: "ใช้ Word/Excel/PowerPoint...", 2: "ใช้เทคโนโลยีวิเคราะห์ข้อมูลงานประจำ...", 3: "ใช้โปรแกรมคำนวณขั้นสูง...", 4: "ถ่ายทอด เป็นที่ปรึกษา...", 5: "นำเทคโนโลยีมาเพิ่มคุณค่างาน..."} }
+                ]
+            },
+            func_na: {
+                title: "สมรรถนะประจำตำแหน่ง (Functional Competency) - พนักงานช่วยเหลือคนไข้ (NA)",
+                items: [
+                    { topic: "1. ความรู้และทักษะด้านการช่วยปฏิบัติการพยาบาล", definition: "พฤติกรรมที่แสดงออกถึงความรู้ ความสามารถและทักษะ...", levels: {0: "ไม่สามารถประเมินได้", 1: "ดูแลความสะอาด อาหาร...", 2: "ใช้เทคนิคป้องกันติดเชื้อ...", 3: "วางแผนงานตามสภาวะผู้ป่วย...", 4: "ดูแลช่วยเหลือและกระตุ้นให้ผู้ป่วย...", 5: "ปรับปรุงงานที่รับผิดชอบ ทำ CQI..."} },
+                    { topic: "2. ความรู้ทักษะด้านการเตรียมอุปกรณ์สำหรับหัตถการ", definition: "พฤติกรรมที่แสดงออกถึงความรู้ ความสามารถและทักษะ...", levels: {0: "ไม่สามารถประเมินได้", 1: "มีความรู้และทักษะการเตรียมอุปกรณ์...", 2: "จัดเตรียมอุปกรณ์หัตถการสำคัญ...", 3: "เตรียมอุปกรณ์หัตถการซับซ้อน...", 4: "ดูแลอุปกรณ์หัตถการสำคัญให้พร้อมใช้...", 5: "คิดค้นนวัตกรรมเกี่ยวกับการจัดเตรียม..."} },
+                    { topic: "3. ความรู้ทักษะด้านการสื่อสารและสัมพันธภาพ", definition: "พฤติกรรมที่แสดงออกถึงความรู้ ความสามารถและทักษะ...", levels: {0: "ไม่สามารถประเมินได้", 1: "ใช้คำพูดเหมาะสม ควบคุมอารมณ์...", 2: "บันทึกข้อมูล/ส่งต่อผู้ป่วยได้ถูกต้อง...", 3: "ฟังอย่างเข้าใจ สรุปประเด็นชัดเจน...", 4: "แก้ปัญหาเบื้องต้นเมื่อเกิดความไม่พึงพอใจ...", 5: "คิดค้นวิธีการสื่อสารที่มีประสิทธิภาพ..."} }
+                ]
+            },
+            func_worker: {
+                title: "สมรรถนะประจำตำแหน่ง (Functional Competency) - พนักงานประจำตึก",
+                items: [
+                    { topic: "1. ความรู้และทักษะด้านการควบคุมและป้องกันการติดเชื้อจากการปฏิบัติงาน", definition: "พฤติกรรมที่แสดงออกถึงความรู้ ความสามารถและทักษะ...", levels: {0: "ไม่สามารถประเมินได้", 1: "รู้พื้นฐาน Standard/Transmission...", 2: "บอกแนวทางและปฏิบัติตามหลัก...", 3: "ปฏิบัติตาม WI ภายใต้การกำกับดูแล...", 4: "ถ่ายทอดความรู้ทักษะให้เพื่อนร่วมงาน...", 5: "วิเคราะห์สาเหตุและระบุปัญหา..."} },
+                    { topic: "2. ความรู้ทักษะด้านการจัดการมูลฝอยในโรงพยาบาล", definition: "พฤติกรรมที่แสดงออกถึงความรู้ ความสามารถและทักษะ...", levels: {0: "ไม่สามารถประเมินได้", 1: "รู้ประเภท วิธีรวบรวม/เคลื่อนย้าย...", 2: "บอกวิธีปฏิบัติและปฏิบัติตามหลัก...", 3: "ติดตามประเมินผลการปฏิบัติงาน...", 4: "ถ่ายทอดความรู้ทักษะให้เพื่อนร่วมงาน...", 5: "ให้คำปรึกษา เสนอแนะแนวทางแก้ปัญหา..."} },
+                    { topic: "3. ความรู้ทักษะด้านการสื่อสารและสัมพันธภาพ", definition: "พฤติกรรมที่แสดงออกถึงความรู้ ความสามารถและทักษะ...", levels: {0: "ไม่สามารถประเมินได้", 1: "ใช้คำพูดเหมาะสม ควบคุมอารมณ์...", 2: "บันทึก/ส่งต่อข้อมูลผู้ป่วยได้ถูกต้อง...", 3: "ฟังเข้าใจ/สรุปประเด็นชัดเจน...", 4: "แก้ปัญหาเบื้องต้นเมื่อเกิดความไม่พึงพอใจ...", 5: "คิดค้นวิธีการสื่อสารที่มีประสิทธิภาพ..."} }
+                ]
+            }
+        };
+
+        function getScoreLabel(score) {
+            const labels = {
+                0: "0 - ไม่สามารถประเมินได้",
+                1: "1 - จำเป็นต้องได้รับการพัฒนาอย่างยิ่ง",
+                2: "2 - ต้องได้รับการพัฒนา (ทำได้อย่างน้อยกว่าครึ่ง)",
+                3: "3 - อยู่ในระดับใช้งานได้ (ทำได้ประมาณครึ่ง)",
+                4: "4 - อยู่ในระดับที่ใช้งานได้ดี (ทำได้มากกว่าครึ่ง)",
+                5: "5 - อยู่ในระดับที่ดีเยี่ยม (ทำได้ครบทั้งหมด)"
+            };
+            return labels[score] || "";
+        }
+
+        function evaluateScoreLabel(average) {
+            const score = parseFloat(average);
+            if (score >= 4.5) return `<span class="px-2 py-1 bg-green-100 text-green-700 rounded-md font-medium text-xs">ดีเยี่ยม</span>`;
+            if (score >= 3.5) return `<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-md font-medium text-xs">ดีมาก</span>`;
+            if (score >= 2.5) return `<span class="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-md font-medium text-xs">พอใช้</span>`;
+            return `<span class="px-2 py-1 bg-red-100 text-red-700 rounded-md font-medium text-xs">ต้องพัฒนา</span>`;
+        }
+
+        function formatDateThai(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        // ดึงคะแนนรายข้อมาเป็น Array เพื่อแสดงในตารางให้ตรงคอลัมน์
+        function extractScoresArray(position, scoresObj) {
+            let coreScores = ['-', '-', '-', '-', '-'];
+            let funcScores = ['-', '-', '-', '-', '-'];
+
+            if (!scoresObj) return [...coreScores, ...funcScores];
+
+            // 5 ข้อของ Core Competency
+            const coreItems = questionsDB.core.items.map(i => i.topic);
+            coreItems.forEach((topic, index) => {
+                if (scoresObj[topic] !== undefined) coreScores[index] = scoresObj[topic];
+            });
+
+            // 3-5 ข้อของ Functional Competency
+            let funcItems = [];
+            if (position === "พยาบาลวิชาชีพ") funcItems = questionsDB.func_rn.items.map(i => i.topic);
+            else if (position === "พนักงานช่วยเหลือคนไข้") funcItems = questionsDB.func_na.items.map(i => i.topic);
+            else if (position === "พนักงานประจำตึก") funcItems = questionsDB.func_worker.items.map(i => i.topic);
+
+            funcItems.forEach((topic, index) => {
+                if (scoresObj[topic] !== undefined) funcScores[index] = scoresObj[topic];
+            });
+
+            return [...coreScores, ...funcScores];
+        }
+
+        // ฟังก์ชัน Export ตาราง HTML เป็นไฟล์ CSV เพื่อเปิดใน Excel
+        function exportTableToCSV(filename) {
+            const table = document.getElementById("reportTable");
+            let csv = [];
+            
+            // ใส่ BOM เพื่อให้ Excel รองรับภาษาไทย (UTF-8) ได้ถูกต้อง
+            csv.push('\uFEFF');
+
+            const rows = table.querySelectorAll("tr");
+            for (let i = 0; i < rows.length; i++) {
+                let row = [], cols = rows[i].querySelectorAll("td, th");
+                
+                for (let j = 0; j < cols.length; j++) {
+                    let data = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, "").trim();
+                    // Escape เครื่องหมายคำพูด
+                    data = data.replace(/"/g, '""');
+                    row.push('"' + data + '"');
+                }
+                csv.push(row.join(","));
+            }
+
+            const csvFile = new Blob([csv.join("\n")], {type: "text/csv;charset=utf-8;"});
+            const downloadLink = document.createElement("a");
+            downloadLink.download = filename;
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = "none";
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+
+        function loadQuestions() {
+            const position = document.getElementById('position').value;
+            const container = document.getElementById('questionsContainer');
+            
+            if(!position) return;
+
+            let sectionsToRender = [];
+            if (position === "พยาบาลวิชาชีพ") {
+                sectionsToRender.push({ id: 'core', data: questionsDB.core });
+                sectionsToRender.push({ id: 'func', data: questionsDB.func_rn });
+            } else if (position === "พนักงานช่วยเหลือคนไข้") {
+                sectionsToRender.push({ id: 'func', data: questionsDB.func_na });
+            } else if (position === "พนักงานประจำตึก") {
+                sectionsToRender.push({ id: 'func', data: questionsDB.func_worker });
+            }
+
+            let htmlString = "";
+
+            sectionsToRender.forEach((section) => {
+                htmlString += `
+                    <div class="mb-10">
+                        <h3 class="text-xl font-bold text-blue-900 mb-6 pb-2 border-b-2 border-pink-200 flex items-center">
+                            <i data-lucide="layers" class="w-6 h-6 mr-2 text-pink-500"></i> ${section.data.title}
+                        </h3>
+                        <div class="space-y-6">
+                `;
+
+                section.data.items.forEach((item, qIndex) => {
+                    const qId = `${section.id}_q${qIndex}`;
+                    let levelsHtml = "";
+                    for(let score = 0; score <= 5; score++) {
+                        levelsHtml += `
+                            <div class="relative">
+                                <input type="radio" id="${qId}_s${score}" name="${item.topic}" value="${score}" class="peer sr-only" required>
+                                <label for="${qId}_s${score}" class="radio-card-label flex p-4 border border-gray-200 rounded-xl cursor-pointer bg-white transition-all duration-200 hover:border-pink-300 hover:bg-pink-50/30 peer-checked:border-pink-500 peer-checked:bg-gradient-to-r peer-checked:from-pink-50 peer-checked:to-blue-50/50">
+                                    <div class="flex items-start gap-4 w-full">
+                                        <div class="flex-shrink-0 w-10 h-10 rounded-full border-2 border-gray-200 flex items-center justify-center font-bold text-gray-500 bg-gray-50 peer-checked:border-pink-500 peer-checked:bg-pink-500 peer-checked:text-white transition-colors">
+                                            ${score}
+                                        </div>
+                                        <div class="flex-1 pt-0.5">
+                                            <div class="text-sm font-bold text-gray-700 peer-checked:text-pink-700">${getScoreLabel(score)}</div>
+                                            <div class="text-sm text-gray-600 mt-1.5 leading-relaxed">${item.levels[score]}</div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        `;
+                    }
+
+                    htmlString += `
+                        <div class="bg-gray-50/50 p-6 rounded-2xl border border-blue-100">
+                            <h4 class="font-bold text-lg text-gray-900 mb-2">${item.topic}</h4>
+                            ${item.definition ? `<p class="text-sm text-gray-600 mb-4 bg-white p-3 rounded-lg border border-gray-200"><span class="font-semibold text-gray-700">คำจำกัดความ:</span> ${item.definition}</p>` : ''}
+                            <div class="space-y-3">
+                                ${levelsHtml}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                htmlString += `</div></div>`;
+            });
+
+            container.innerHTML = htmlString;
+            container.classList.remove('hidden');
+            lucide.createIcons();
+            container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function submitForm(event) {
+            event.preventDefault(); 
+
+            const assesseeName = document.getElementById('assesseeName').value;
+            const position = document.getElementById('position').value;
+            const assessorName = document.getElementById('assessorName').value;
+            const assessmentType = document.querySelector('input[name="assessmentType"]:checked').value;
+            
+            const scoreInputs = document.querySelectorAll('input[type="radio"].peer:checked');
+            const scores = {};
+            scoreInputs.forEach(input => {
+                scores[input.name] = input.value;
+            });
+
+            const allRadiosGroups = new Set(Array.from(document.querySelectorAll('input[type="radio"].peer')).map(el => el.name));
+            if (Object.keys(scores).length < allRadiosGroups.size) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'ข้อมูลไม่ครบถ้วน',
+                    text: 'กรุณาประเมินให้ครบทุกข้อ',
+                    confirmButtonColor: '#3b82f6'
+                });
+                return;
+            }
+
+            const formData = {
+                assesseeName: assesseeName,
+                position: position,
+                assessorName: assessorName,
+                assessmentType: assessmentType,
+                scores: scores
+            };
+
+            Swal.fire({
+                title: 'กำลังบันทึกข้อมูล...',
+                text: 'กรุณารอสักครู่',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyiusP8IyENXT8yLgTqzASr5gHrSJbxmXCuq6Wb5sQ_rl6hCGOGrOWWh0632gAUPdLxPg/exec";
+
+            const handleSuccess = (response) => {
+                if(response.status === "success") {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'บันทึกสำเร็จ!',
+                        text: 'ข้อมูลการประเมินถูกบันทึกลงฐานข้อมูลเรียบร้อยแล้ว',
+                        confirmButtonColor: '#10b981'
+                    }).then(() => {
+                        document.getElementById('assessmentForm').reset();
+                        document.getElementById('questionsContainer').innerHTML = '';
+                        document.getElementById('questionsContainer').classList.add('hidden');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        
+                        if (isAdminLoggedIn) {
+                            fetchDashboardData();
+                        }
+                    });
+                } else {
+                    Swal.fire('ข้อผิดพลาด!', response.message || 'เกิดข้อผิดพลาดในการบันทึก', 'error');
+                }
+            };
+
+            const handleError = (error) => {
+                Swal.fire('เกิดข้อผิดพลาด!', 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้: ' + error, 'error');
+            };
+
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withSuccessHandler(handleSuccess)
+                    .withFailureHandler(handleError)
+                    .saveAssessment(formData);
+            } else {
+                fetch(WEBAPP_URL + "?action=save", {
+                    method: 'POST',
+                    body: JSON.stringify(formData),
+                    headers: {
+                        "Content-Type": "text/plain;charset=utf-8"
+                    }
+                })
+                .then(response => response.json())
+                .then(handleSuccess)
+                .catch(handleError);
+            }
+        }
+
+        // ==========================================
+        // ระบบ Login และ Dashboard
+        // ==========================================
+        let overallChartInstance = null;
+        let individualChartInstance = null;
+        let dashboardData = [];
+
+        function checkAdminLogin() {
+            if (isAdminLoggedIn) {
+                switchTab('dashboard');
+                return;
+            }
+
+            Swal.fire({
+                title: 'เข้าสู่ระบบผู้บริหาร (Admin)',
+                html: `
+                    <input type="text" id="loginUsername" class="swal2-input" placeholder="Username">
+                    <input type="password" id="loginPassword" class="swal2-input" placeholder="Password">
+                `,
+                confirmButtonText: 'เข้าสู่ระบบ',
+                focusConfirm: false,
+                confirmButtonColor: '#db2777', 
+                preConfirm: () => {
+                    const username = Swal.getPopup().querySelector('#loginUsername').value;
+                    const password = Swal.getPopup().querySelector('#loginPassword').value;
+                    if (!username || !password) {
+                        Swal.showValidationMessage(`กรุณากรอก Username และ Password`);
+                    }
+                    return { username: username, password: password }
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    if (result.value.username === 'admin' && result.value.password === '1234') {
+                        isAdminLoggedIn = true;
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'เข้าสู่ระบบสำเร็จ',
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 1500
+                        });
+                        switchTab('dashboard');
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'ข้อมูลไม่ถูกต้อง',
+                            text: 'Username หรือ Password ไม่ถูกต้อง'
+                        });
+                    }
+                }
+            });
+        }
+
+        function switchTab(tab) {
+            const formView = document.getElementById('assessmentForm');
+            const dashView = document.getElementById('dashboardView');
+            const tabFormBtn = document.getElementById('tab-form');
+            const tabDashBtn = document.getElementById('tab-dashboard');
+
+            const activeClass = ['bg-gradient-to-r', 'from-blue-600', 'to-pink-600', 'text-white', 'shadow-[0_4px_0_#9d174d]', 'border-transparent'];
+            const inactiveClass = ['bg-white', 'text-gray-600', 'border', 'border-gray-200', 'shadow-[0_4px_0_#e5e7eb]'];
+
+            if (tab === 'form') {
+                formView.classList.remove('hidden');
+                dashView.classList.add('hidden');
+                
+                tabFormBtn.classList.add(...activeClass);
+                tabFormBtn.classList.remove(...inactiveClass);
+                tabDashBtn.classList.add(...inactiveClass);
+                tabDashBtn.classList.remove(...activeClass);
+            } else {
+                formView.classList.add('hidden');
+                dashView.classList.remove('hidden');
+                
+                tabDashBtn.classList.add(...activeClass);
+                tabDashBtn.classList.remove(...inactiveClass);
+                tabFormBtn.classList.add(...inactiveClass);
+                tabFormBtn.classList.remove(...activeClass);
+
+                fetchDashboardData();
+            }
+        }
+
+        function fetchDashboardData() {
+            Swal.fire({
+                title: 'กำลังโหลดข้อมูล...',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyiusP8IyENXT8yLgTqzASr5gHrSJbxmXCuq6Wb5sQ_rl6hCGOGrOWWh0632gAUPdLxPg/exec";
+            
+            const handleData = (data) => {
+                Swal.close();
+                if(!data) return;
+                dashboardData = data;
+                updateDashboardUI(); 
+            };
+
+            const handleError = (error) => {
+                Swal.fire('Error', 'ไม่สามารถดึงข้อมูลได้: ' + error, 'error');
+            };
+
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withSuccessHandler(handleData)
+                    .withFailureHandler(handleError)
+                    .getDashboardData();
+            } else {
+                fetch(WEBAPP_URL + "?action=getDashboard")
+                    .then(response => response.json())
+                    .then(handleData)
+                    .catch(handleError);
+            }
+        }
+
+        function updateDashboardUI() {
+            if (!dashboardData || dashboardData.length === 0) return;
+
+            const selectedFilter = document.getElementById('dashPositionFilter').value;
+            
+            let filteredData = dashboardData;
+            if (selectedFilter !== 'all') {
+                filteredData = dashboardData.filter(item => item.position === selectedFilter);
+            }
+
+            if (filteredData.length === 0) {
+                document.getElementById('execTotalCount').innerText = "0";
+                document.getElementById('execAvgOrg').innerText = "0.00";
+                document.getElementById('execTopStrength').innerText = "-";
+                document.getElementById('execTopWeakness').innerText = "-";
+                document.getElementById('adminTableBody').innerHTML = '<tr><td colspan="16" class="px-6 py-4 text-center">ไม่มีข้อมูลสำหรับตำแหน่งที่เลือก</td></tr>';
+                if(overallChartInstance) overallChartInstance.destroy();
+                if(individualChartInstance) individualChartInstance.destroy();
+                document.getElementById('individualSummary').classList.add('hidden');
+                return;
+            }
+
+            // 1. อัปเดต Executive Summary
+            document.getElementById('execTotalCount').innerText = filteredData.length;
+            
+            const totalAvg = filteredData.reduce((sum, item) => sum + parseFloat(item.average || 0), 0) / filteredData.length;
+            document.getElementById('execAvgOrg').innerText = totalAvg.toFixed(2);
+            
+            const scoreSums = {};
+            const scoreCounts = {};
+            
+            filteredData.forEach(entry => {
+                if(entry.scores) {
+                    for(let key in entry.scores) {
+                        if (!scoreSums[key]) { scoreSums[key] = 0; scoreCounts[key] = 0; }
+                        scoreSums[key] += parseFloat(entry.scores[key]);
+                        scoreCounts[key]++;
+                    }
+                }
+            });
+
+            let highestTopic = "-", highestVal = -1;
+            let lowestTopic = "-", lowestVal = 6;
+
+            for(let key in scoreSums) {
+                let avg = scoreSums[key] / scoreCounts[key];
+                if (avg > highestVal) { highestVal = avg; highestTopic = key.split(' ')[1] || key; } 
+                if (avg < lowestVal) { lowestVal = avg; lowestTopic = key.split(' ')[1] || key; }
+            }
+
+            document.getElementById('execTopStrength').innerText = highestTopic;
+            document.getElementById('execTopWeakness').innerText = lowestTopic;
+
+
+            // 2. อัปเดตตารางรายบุคคล (รวมคะแนนรายสมรรถนะ)
+            const tbody = document.getElementById('adminTableBody');
+            tbody.innerHTML = '';
+
+            const groupedData = {};
+            filteredData.forEach(item => {
+                if(!groupedData[item.position]) groupedData[item.position] = [];
+                groupedData[item.position].push(item);
+            });
+
+            for(let pos in groupedData) {
+                if (selectedFilter === 'all') {
+                    tbody.innerHTML += `
+                        <tr class="bg-blue-50 border-y border-blue-100">
+                            <td colspan="16" class="px-4 py-2 font-bold text-blue-800 text-xs">
+                                ตำแหน่ง: ${pos} (${groupedData[pos].length} คน)
+                            </td>
+                        </tr>
+                    `;
+                }
+
+                groupedData[pos].reverse().forEach(item => {
+                    const avgNum = parseFloat(item.average).toFixed(2);
+                    const scoresArray = extractScoresArray(item.position, item.scores);
+                    const scoresCellsHTML = scoresArray.map((score, idx) => {
+                        let isBorder = (idx === 0 || idx === 5) ? 'border-l border-gray-200' : '';
+                        return `<td class="px-4 py-3 text-center ${isBorder}">${score}</td>`;
+                    }).join('');
+
+                    tbody.innerHTML += `
+                        <tr class="bg-white border-b hover:bg-gray-50 whitespace-nowrap">
+                            <td class="px-4 py-3 font-medium text-gray-900">${item.assessee}</td>
+                            <td class="px-4 py-3">${item.position}</td>
+                            <td class="px-4 py-3">${item.type}</td>
+                            ${scoresCellsHTML}
+                            <td class="px-4 py-3 text-center font-bold text-blue-600 border-l border-gray-200">${avgNum}</td>
+                            <td class="px-4 py-3 text-center">${evaluateScoreLabel(avgNum)}</td>
+                            <td class="px-4 py-3 text-center text-xs text-gray-500">${formatDateThai(item.date)}</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            // 3. อัปเดต Dropdown Radar
+            const select = document.getElementById('personSelect');
+            const existingOptions = new Set();
+            select.innerHTML = '<option value="">-- เลือกบุคคล --</option>';
+            
+            filteredData.slice().reverse().forEach(item => {
+                if(!existingOptions.has(item.assessee) && item.assessee) {
+                    existingOptions.add(item.assessee);
+                    const opt = document.createElement('option');
+                    opt.value = item.assessee;
+                    opt.text = item.assessee + (selectedFilter === 'all' ? ` (${item.position})` : '');
+                    select.appendChild(opt);
+                }
+            });
+
+            renderOverallChart(filteredData);
+            
+            if(select.options.length > 1) {
+                select.selectedIndex = 1;
+                updateIndividualChart();
+            } else {
+                if(individualChartInstance) individualChartInstance.destroy();
+                document.getElementById('individualSummary').classList.add('hidden');
+            }
+        }
+
+        function renderOverallChart(filteredData) {
+            const coreKeys = [
+                "1. การมุ่งผลสัมฤทธิ์ (Achievement Motivation)",
+                "2. บริการที่ดี (Service Mind)",
+                "3. การสั่งสมความเชี่ยวชาญในงานอาชีพ (Expertise)",
+                "4. การยึดมั่นในความถูกต้องชอบธรรมและจริยธรรม (Integrity)",
+                "5. การทำงานเป็นทีม (Teamwork)"
+            ];
+            
+            let sums = [0, 0, 0, 0, 0];
+            let counts = [0, 0, 0, 0, 0];
+
+            filteredData.forEach(entry => {
+                if(entry.scores) {
+                    coreKeys.forEach((key, index) => {
+                        if(entry.scores[key] !== undefined) {
+                            sums[index] += parseFloat(entry.scores[key]);
+                            counts[index]++;
+                        }
+                    });
+                }
+            });
+
+            const averages = sums.map((sum, i) => counts[i] > 0 ? (sum / counts[i]).toFixed(2) : 0);
+
+            const ctx = document.getElementById('overallChart').getContext('2d');
+            
+            if(overallChartInstance) overallChartInstance.destroy();
+
+            overallChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Achievement', 'Service Mind', 'Expertise', 'Integrity', 'Teamwork'],
+                    datasets: [{
+                        label: 'คะแนนเฉลี่ย',
+                        data: averages,
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)', 
+                        borderColor: 'rgb(29, 78, 216)',
+                        borderWidth: 1,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, max: 5 } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // วาดกราฟใยแมงมุม (Radar Chart) และสร้างบทสรุปรายบุคคล
+        function updateIndividualChart() {
+            const personName = document.getElementById('personSelect').value;
+            const ctx = document.getElementById('individualChart').getContext('2d');
+            const summaryDiv = document.getElementById('individualSummary');
+
+            if(!personName) {
+                if(individualChartInstance) individualChartInstance.destroy();
+                summaryDiv.classList.add('hidden');
+                return;
+            }
+
+            const personData = dashboardData.slice().reverse().find(d => d.assessee === personName);
+            if(!personData || !personData.scores) return;
+
+            const labels = [];
+            const dataPoints = [];
+            let highestScore = -1;
+            let lowestScore = 6;
+            let strengths = [];
+            let weaknesses = [];
+
+            // คำนวณค่าสูงสุด ต่ำสุด
+            for(let key in personData.scores) {
+                let score = parseFloat(personData.scores[key]);
+                if(score > highestScore) highestScore = score;
+                if(score < lowestScore) lowestScore = score;
+            }
+
+            for(let key in personData.scores) {
+                let score = parseFloat(personData.scores[key]);
+                
+                // จัดหมวดหมู่จุดเด่น / จุดที่ควรพัฒนา
+                if(score === highestScore) strengths.push(key);
+                if(score === lowestScore) weaknesses.push(key);
+
+                // ย่อ Label กราฟ
+                let shortLabel = key.split(' ').slice(0, 3).join(' '); 
+                if (shortLabel.length > 25) {
+                    shortLabel = shortLabel.substring(0, 22) + '...';
+                }
+                labels.push(shortLabel);
+                dataPoints.push(score);
+            }
+
+            if(individualChartInstance) individualChartInstance.destroy();
+
+            individualChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: personName,
+                        data: dataPoints,
+                        backgroundColor: 'rgba(236, 72, 153, 0.25)', 
+                        borderColor: 'rgb(219, 39, 119)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgb(219, 39, 119)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(219, 39, 119)',
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 5,
+                            ticks: { stepSize: 1, backdropColor: 'transparent' }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    return Object.keys(personData.scores)[context[0].dataIndex];
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // สร้างข้อความบทสรุปใต้กราฟ
+            summaryDiv.innerHTML = `
+                <h4 class="font-bold text-gray-800 mb-3 border-b border-pink-200 pb-2">บทสรุปสมรรถนะของคุณ ${personName}</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="text-green-600 font-bold flex items-center mb-1"><i data-lucide="arrow-up-circle" class="w-4 h-4 mr-1"></i> จุดเด่น (ได้ ${highestScore} คะแนน)</span>
+                        <ul class="list-disc pl-5 text-gray-700 space-y-1">
+                            ${strengths.map(s => `<li>${s}</li>`).join('')}
+                        </ul>
+                    </div>
+                    <div>
+                        <span class="text-orange-500 font-bold flex items-center mb-1"><i data-lucide="arrow-down-circle" class="w-4 h-4 mr-1"></i> ส่วนที่ควรพัฒนา (ได้ ${lowestScore} คะแนน)</span>
+                        <ul class="list-disc pl-5 text-gray-700 space-y-1">
+                            ${weaknesses.map(s => `<li>${s}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `;
+            summaryDiv.classList.remove('hidden');
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>
